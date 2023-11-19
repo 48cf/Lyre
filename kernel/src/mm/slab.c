@@ -9,10 +9,14 @@
 #include <mm/slab.k.h>
 #include <mm/vmm.k.h>
 
+struct slab_entry {
+    struct slab_entry *next;
+};
+
 struct slab {
     spinlock_t lock;
-    void **first_free;
     size_t ent_size;
+    struct slab_entry *first_free;
 };
 
 struct slab_header {
@@ -24,7 +28,7 @@ struct alloc_metadata {
     size_t size;
 };
 
-static struct slab slabs[10];
+static struct slab slabs[8];
 
 static inline struct slab *slab_for(size_t size) {
     for (size_t i = 0; i < SIZEOF_ARRAY(slabs); i++) {
@@ -36,69 +40,71 @@ static inline struct slab *slab_for(size_t size) {
     return NULL;
 }
 
-static void create_slab(struct slab *slab, size_t ent_size) {
+static bool create_slab(struct slab *slab, size_t ent_size) {
     slab->lock = (spinlock_t)SPINLOCK_INIT;
-    slab->first_free = pmm_alloc_nozero(1) + VMM_HIGHER_HALF;
     slab->ent_size = ent_size;
+    slab->first_free = NULL;
 
     size_t header_offset = ALIGN_UP(sizeof(struct slab_header), ent_size);
     size_t available_size = PAGE_SIZE - header_offset;
 
-    struct slab_header *slab_ptr = (struct slab_header *)slab->first_free;
-    slab_ptr->slab = slab;
-    slab->first_free = (void **)((void *)slab->first_free + header_offset);
-
-    void **arr = (void **)slab->first_free;
-    size_t max = available_size / ent_size - 1;
-    size_t fact = ent_size / sizeof(void *);
-
-    for (size_t i = 0; i < max; i++) {
-        arr[i * fact] = &arr[(i + 1) * fact];
+    void *slab_phys = pmm_alloc_nozero(1);
+    if (!slab_phys) {
+        return false;
     }
-    arr[max * fact] = NULL;
+
+    struct slab_header *slab_ptr = (struct slab_header *)(slab_phys + VMM_HIGHER_HALF);
+    slab_ptr->slab = slab;
+
+    void *entries = slab_phys + header_offset + VMM_HIGHER_HALF;
+    for (size_t i = 0; i < available_size / ent_size; i++) {
+        struct slab_entry *entry = (struct slab_entry *)(entries + ent_size * i);
+        entry->next = slab->first_free;
+        slab->first_free = entry;
+    }
+
+    return true;
 }
 
 static void *alloc_from_slab(struct slab *slab) {
     spinlock_acquire(&slab->lock);
 
-    if (slab->first_free == NULL) {
-        create_slab(slab, slab->ent_size);
+    void *result = NULL;
+    
+allocate:
+    if (slab->first_free != NULL) {
+        struct slab_entry *entry = slab->first_free;
+        slab->first_free = entry->next;
+        result = entry;
+    } else if (create_slab(slab, slab->ent_size)) {
+        goto allocate;
     }
 
-    void **old_free = slab->first_free;
-    slab->first_free = *old_free;
-    memset(old_free, 0, slab->ent_size);
+    if (result) {
+        memset(result, 0, slab->ent_size);
+    }
 
     spinlock_release(&slab->lock);
-    return old_free;
+    return result;
 }
 
 static void free_in_slab(struct slab *slab, void *addr) {
     spinlock_acquire(&slab->lock);
 
-    if (addr == NULL) {
-        goto cleanup;
+    if (addr) {
+        struct slab_entry *entry = addr;
+        entry->next = slab->first_free;
+        slab->first_free = entry;
     }
 
-    void **new_head = addr;
-    *new_head = slab->first_free;
-    slab->first_free = new_head;
-
-cleanup:
     spinlock_release(&slab->lock);
 }
 
 void slab_init(void) {
-    create_slab(&slabs[0], 8);
-    create_slab(&slabs[1], 16);
-    create_slab(&slabs[2], 24);
-    create_slab(&slabs[3], 32);
-    create_slab(&slabs[4], 48);
-    create_slab(&slabs[5], 64);
-    create_slab(&slabs[6], 128);
-    create_slab(&slabs[7], 256);
-    create_slab(&slabs[8], 512);
-    create_slab(&slabs[9], 1024);
+    for (size_t i = 0; i < SIZEOF_ARRAY(slabs); i++) {
+        // Creates slabs for all power-of-2 block sizes between 8 and 1024
+        create_slab(&slabs[i], 1 << (i + 3));
+    }
 }
 
 void *slab_alloc(size_t size) {
@@ -149,7 +155,7 @@ void *slab_realloc(void *addr, size_t new_size) {
         return new_addr;
     }
 
-    struct slab_header *slab_header = (struct slab_header *)((uintptr_t)addr & ~0xfff);
+    struct slab_header *slab_header = (struct slab_header *)((uintptr_t)addr & ~0xffful);
     struct slab *slab = slab_header->slab;
 
     if (new_size > slab->ent_size) {
@@ -177,6 +183,6 @@ void slab_free(void *addr) {
         return;
     }
 
-    struct slab_header *slab_header = (struct slab_header *)((uintptr_t)addr & ~0xfff);
+    struct slab_header *slab_header = (struct slab_header *)((uintptr_t)addr & ~0xffful);
     free_in_slab(slab_header->slab, addr);
 }
