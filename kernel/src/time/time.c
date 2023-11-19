@@ -30,15 +30,22 @@ struct timer *timer_new(struct timespec when) {
         return NULL;
     }
 
-    timer->when = when;
-    timer->fired = false;
-    timer->index = -1;
-
-    timer_arm(timer);
+    timer_init(timer, when);
     return timer;
 }
 
+void timer_init(struct timer *timer, struct timespec when) {
+    timer->when = when;
+    timer->fired = false;
+    timer->index = -1;
+    timer_arm(timer);
+}
+
 void timer_arm(struct timer *timer) {
+    if (timer->index != -1) {
+        return;
+    }
+
     spinlock_acquire(&timers_lock);
 
     timer->index = armed_timers.length;
@@ -49,11 +56,11 @@ void timer_arm(struct timer *timer) {
 }
 
 void timer_disarm(struct timer *timer) {
-    spinlock_acquire(&timers_lock);
-
-    if (armed_timers.length == 0 || timer->index == -1 || (size_t)timer->index >= armed_timers.length) {
-        goto cleanup;
+    if (timer->index == -1) {
+        return;
     }
+
+    spinlock_acquire(&timers_lock);
 
     armed_timers.data[timer->index] = VECTOR_ITEM(&armed_timers, armed_timers.length - 1);
     VECTOR_ITEM(&armed_timers, timer->index)->index = timer->index;
@@ -61,7 +68,6 @@ void timer_disarm(struct timer *timer) {
 
     timer->index = -1;
 
-cleanup:
     spinlock_release(&timers_lock);
 }
 
@@ -76,7 +82,7 @@ void time_init(void) {
 void timer_handler(void) {
     struct timespec interval = {
         .tv_sec = 0,
-        .tv_nsec = 1000000000 / TIMER_FREQ
+        .tv_nsec = TIMER_SEC_NSEC / TIMER_FREQ
     };
 
     time_monotonic = timespec_add(time_monotonic, interval);
@@ -101,22 +107,12 @@ void timer_handler(void) {
 }
 
 void time_nsleep(uint64_t ns) {
-    struct timespec duration = { .tv_sec = ns / 1000000000, .tv_nsec = ns };
-    struct timer *timer = NULL;
+    struct timer timer;
+    timer_init(&timer, (struct timespec){.tv_sec = ns / TIMER_SEC_NSEC, .tv_nsec = ns % TIMER_SEC_NSEC});
 
-    timer = timer_new(duration);
-    if (timer == NULL) {
-        goto cleanup;
-    }
-
-    struct event *events[] = { &timer->event };
-    event_await(events, 1, true);
-
-    timer_disarm(timer);
-
-    free(timer);
-cleanup:
-    return;
+    struct event *event = &timer.event;
+    event_await(&event, 1, true);
+    timer_disarm(&timer);
 }
 
 int syscall_sleep(void *_, struct timespec *duration, struct timespec *remaining) {
@@ -131,7 +127,7 @@ int syscall_sleep(void *_, struct timespec *duration, struct timespec *remaining
         goto cleanup;
     }
 
-    if (duration->tv_nsec < 0 || duration->tv_nsec < 0 || duration->tv_nsec > 1000000000) {
+    if (duration->tv_nsec < 0 || duration->tv_nsec < 0 || duration->tv_nsec >= TIMER_SEC_NSEC) {
         errno = EINVAL;
         goto cleanup;
     }
