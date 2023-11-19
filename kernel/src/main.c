@@ -25,10 +25,14 @@
 #include <acpi/acpi.k.h>
 #include <time/time.k.h>
 
+LIMINE_BASE_REVISION(1)
+
 void kmain_thread(void);
 
 void _start(void) {
     serial_init();
+    ASSERT(LIMINE_BASE_REVISION_SUPPORTED);
+
     gdt_init();
     idt_init();
     except_init();
