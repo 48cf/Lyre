@@ -64,10 +64,14 @@ void kmain_thread(void) {
     const char *ld_path;
 
     struct vfs_node *init_node = vfs_get_node(vfs_root, "/usr/bin/init", true);
-    elf_load(init_vm, init_node->resource, 0x0, &init_auxv, &ld_path);
+    if (!elf_load(init_vm, init_node->resource, 0x0, &init_auxv, &ld_path)) {
+        panic(NULL, true, "Failed to load init");
+    }
 
     struct vfs_node *ld = vfs_get_node(vfs_root, ld_path, true);
-    elf_load(init_vm, ld->resource, 0x40000000, &ld_auxv, NULL);
+    if (!elf_load(init_vm, ld->resource, 0x40000000, &ld_auxv, NULL)) {
+        panic(NULL, true, "Failed to load init interpreter");
+    }
 
     const char *argv[] = {"/usr/bin/init", NULL};
     const char *envp[] = {NULL};
