@@ -575,7 +575,7 @@ int syscall_ppoll(void *_, struct pollfd *fds, nfds_t nfds, const struct timespe
     struct event *events[MAX_PPOLL_FDS];
     struct timer *timer = NULL;
 
-    if (nfds == 0) {
+    if (nfds == 0 && timeout == NULL) {
         goto cleanup;
     }
 
