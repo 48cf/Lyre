@@ -4,12 +4,8 @@
 #include <lib/errno.k.h>
 
 uint64_t debug_get_syscall_id(void) {
-    static spinlock_t lock = SPINLOCK_INIT;
     static uint64_t syscall_ids = 0;
-    spinlock_acquire(&lock);
-    uint64_t ret = syscall_ids++;
-    spinlock_release(&lock);
-    return ret;
+    return __atomic_fetch_add(&syscall_ids, 1, __ATOMIC_SEQ_CST);
 }
 
 // The following function taken from https://github.com/managarm/mlibc/blob/8aabe65bfcc68f92959732da15a17ff7f7fc8ced/options/ansi/generic/string-stubs.cpp#L338

@@ -123,11 +123,7 @@ void resource_free(struct resource *res) {
 
 dev_t resource_create_dev_id(void) {
     static dev_t dev_id_counter = 1;
-    static spinlock_t lock = (spinlock_t)SPINLOCK_INIT;
-    spinlock_acquire(&lock);
-    dev_t ret = dev_id_counter++;
-    spinlock_release(&lock);
-    return ret;
+    return __atomic_fetch_add(&dev_id_counter, 1, __ATOMIC_SEQ_CST);
 }
 
 bool fdnum_close(struct process *proc, int fdnum, bool lock) {
