@@ -3,7 +3,6 @@
 #include <dev/char/serial.k.h>
 #include <dev/lapic.k.h>
 #include <dev/dev.k.h>
-#include <dev/net/net.k.h>
 #include <lib/elf.k.h>
 #include <lib/print.k.h>
 #include <lib/random.k.h>
@@ -16,8 +15,6 @@
 #include <sys/int_events.k.h>
 #include <fs/vfs/vfs.k.h>
 #include <limine.h>
-#include <fs/ext2fs.k.h>
-#include <fs/fat32fs.k.h>
 #include <fs/initramfs.k.h>
 #include <fs/tmpfs.k.h>
 #include <fs/devtmpfs.k.h>
@@ -53,8 +50,6 @@ void _start(void) {
 void kmain_thread(void) {
     random_init();
     vfs_init();
-    fat32fs_init();
-    ext2fs_init();
     tmpfs_init();
     devtmpfs_init();
     vfs_mount(vfs_root, NULL, "/", "tmpfs");
@@ -62,8 +57,6 @@ void kmain_thread(void) {
     vfs_mount(vfs_root, NULL, "/dev", "devtmpfs");
     vfs_create(vfs_root, "/mnt", 0755 | S_IFDIR);
     dev_init();
-    vfs_mount(vfs_root, "/dev/nvme0n1", "/mnt", "ext2fs");
-    net_init();
     initramfs_init();
 
     struct pagemap *init_vm = vmm_new_pagemap();

@@ -7,7 +7,6 @@
 #include <lib/event.k.h>
 #include <lib/resource.k.h>
 #include <sys/socket.h>
-#include <dev/net/net.k.h>
 
 enum socket_state {
     SOCKET_CREATED,
@@ -45,16 +44,6 @@ struct socket {
     ssize_t (*sendmsg)(struct socket *this, struct f_description *description, const struct msghdr *msg, int flags);
     ssize_t (*getsockopt)(struct socket *this, struct f_description *description, int level, int optname, void *optval, socklen_t *optlen);
     ssize_t (*setsockopt)(struct socket *this, struct f_description *description, int level, int optname, const void *optval, socklen_t optlen);
-};
-
-struct inetsocket {
-    struct socket;
-    struct net_adapter *adapter;
-
-    be_uint16_t port; // redundancy
-    be_uint16_t destport; // redundancy
-    bool canbroadcast;
-    bool canroute;
 };
 
 void *socket_create(int family, int type, int protocol, int size);

@@ -2,8 +2,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <ipc/socket.k.h>
-#include <ipc/socket/tcp.k.h>
-#include <ipc/socket/udp.k.h>
 #include <ipc/socket/unix.k.h>
 #include <lib/alloc.k.h>
 #include <lib/errno.k.h>
@@ -175,25 +173,6 @@ int syscall_socket(void *_, int family, int type, int protocol) {
         case AF_UNIX:
             sock = socket_create_unix(socktype, protocol);
             break;
-        case AF_INET:
-            switch (socktype) {
-                case SOCK_STREAM:
-                    if (protocol == 0) {
-                        protocol = IPPROTO_TCP;
-                    }
-                    sock = socket_create_tcp(socktype, protocol);
-                    break;
-                case SOCK_DGRAM:
-                    if (protocol == 0) {
-                        protocol = IPPROTO_UDP;
-                    }
-                    sock = socket_create_udp(socktype, protocol);
-                    break;
-                default:
-                    errno = EINVAL;
-                    goto cleanup;
-            }
-            break;
         default:
             errno = EINVAL;
             goto cleanup;
@@ -201,7 +180,7 @@ int syscall_socket(void *_, int family, int type, int protocol) {
 
     if (sock == NULL) {
         goto cleanup;
-    } 
+    }
 
     ret = fdnum_create_from_resource(proc, (struct resource *)sock, flags, 0, false);
     if (ret == -1) {
@@ -317,7 +296,7 @@ int syscall_socketpair(void *_, int domain, int type, int protocol, int *fds) {
             sock0->status |= POLLOUT;
             sock1->status |= POLLOUT;
             break;
-        }    
+        }
         default:
             errno = EINVAL;
             goto cleanup;
@@ -471,7 +450,7 @@ int syscall_accept(void *_, int fdnum, void *addr, socklen_t *len) {
 
             while (sock->backlog_i == 0) {
                 sock->status &= ~POLLIN;
-                if ((desc->flags & O_NONBLOCK) != 0) {      
+                if ((desc->flags & O_NONBLOCK) != 0) {
                     errno = EWOULDBLOCK;
                     goto cleanup1;
                 }
