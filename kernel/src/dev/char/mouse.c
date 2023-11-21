@@ -71,8 +71,7 @@ static noreturn void mouse_handler(void) {
     bool discard_packet = false;
 
     for (;;) {
-        struct event *events[] = { &int_events[ps2_mouse_vector] };
-        event_await(events, 1, true);
+        event_await_one(&int_events[ps2_mouse_vector], true);
 
         // we will get some spurious packets at the beginning and they will screw
         // up the alignment of the handler cycle so just ignore everything in
@@ -141,13 +140,12 @@ static ssize_t _mouse_read(struct resource *_this, struct f_description *descrip
     while (!mouse_res->packet_avl) {
         spinlock_release(&mouse_res->lock);
 
-        if (description->flags & O_NONBLOCK) {
-            errno = EWOULDBLOCK;
+        bool block = description->flags & O_NONBLOCK;
+        if (!event_await_one(&mouse_res->event, block)) {
+            errno = block ? EINTR : EWOULDBLOCK;
             return -1;
         }
 
-        struct event *events[] = { &mouse_res->event };
-        event_await(events, 1, true);
         spinlock_acquire(&mouse_res->lock);
     }
 

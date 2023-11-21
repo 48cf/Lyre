@@ -98,8 +98,7 @@ static ssize_t tty_read(struct resource *_this, struct f_description *descriptio
     char *buf = _buf;
 
     while (spinlock_test_and_acq(&read_lock) == false) {
-        struct event *events[] = { &console_event };
-        if (event_await(events, 1, true) == -1) {
+        if (!event_await_one(&console_event, true)) {
             errno = EINTR;
             return -1;
         }
@@ -124,8 +123,7 @@ static ssize_t tty_read(struct resource *_this, struct f_description *descriptio
             if (wait == true) {
                 spinlock_release(&read_lock);
                 for (;;) {
-                    struct event *events[] = { &console_event };
-                    if (event_await(events, 1, true) == -1) {
+                    if (!event_await_one(&console_event, true)) {
                         errno = EINTR;
                         return -1;
                     }
@@ -294,8 +292,7 @@ static noreturn void keyboard_handler(void) {
     bool capslock_active = false;
 
     for (;;) {
-        struct event *events[] = { &int_events[ps2_keyboard_vector] };
-        event_await(events, 1, true);
+        event_await_one(&int_events[ps2_keyboard_vector], true);
 
         uint8_t input_byte = ps2_read();
 

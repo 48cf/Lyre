@@ -58,8 +58,7 @@ int syscall_futex_wait(void *_, int *ptr, int expected) {
 
     spinlock_release(&futex_lock);
 
-    ssize_t which = event_await(&event, 1, true);
-    if (which == -1) {
+    if (!event_await_one(event, true)) {
         errno = EINTR;
         goto cleanup;
     }

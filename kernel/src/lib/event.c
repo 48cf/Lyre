@@ -113,6 +113,11 @@ cleanup:
     return ret;
 }
 
+bool event_await_one(struct event *event, bool block) {
+    struct event *events[] = { event };
+    return event_await(events, 1, block) == 0;
+}
+
 size_t event_trigger(struct event *event, bool drop) {
     bool old_state = interrupt_toggle(false);
 

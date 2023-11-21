@@ -22,6 +22,7 @@ struct event {
 };
 
 ssize_t event_await(struct event **events, size_t num_events, bool block);
+bool event_await_one(struct event *event, bool block);
 size_t event_trigger(struct event *event, bool drop);
 
 #endif

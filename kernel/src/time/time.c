@@ -109,9 +109,7 @@ void timer_handler(void) {
 void time_nsleep(uint64_t ns) {
     struct timer timer;
     timer_init(&timer, (struct timespec){.tv_sec = ns / TIMER_SEC_NSEC, .tv_nsec = ns % TIMER_SEC_NSEC});
-
-    struct event *event = &timer.event;
-    event_await(&event, 1, true);
+    event_await_one(&timer.event, true);
     timer_disarm(&timer);
 }
 
@@ -137,11 +135,7 @@ int syscall_sleep(void *_, struct timespec *duration, struct timespec *remaining
         goto cleanup;
     }
 
-    struct event *event = &timer->event;
-
-    ssize_t which = event_await(&event, 1, true);
-
-    if (which == -1) {
+    if (!event_await_one(&timer->event, true)) {
         if (remaining != NULL) {
             *remaining = timer->when;
         }

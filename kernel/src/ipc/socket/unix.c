@@ -45,8 +45,7 @@ static ssize_t unix_read(struct resource *_this, struct f_description *descripti
 
         spinlock_release(&this->lock);
 
-        struct event *events[] = {&this->event};
-        if (event_await(events, 1, true) < 0) {
+        if (!event_await_one(&this->event, true)) {
             errno = EINTR;
             goto cleanup;
         }
@@ -110,8 +109,7 @@ static ssize_t unix_write(struct resource *_this, struct f_description *descript
 
         spinlock_release(&peer->lock);
 
-        struct event *events[] = {&peer->event};
-        if (event_await(events, 1, true) < 0) {
+        if (!event_await_one(&peer->event, true)) {
             errno = EINTR;
             goto cleanup;
         }
@@ -225,9 +223,7 @@ static bool unix_connect(struct socket *_this, struct f_description *description
     event_trigger(&sock->event, false);
     spinlock_release(&sock->lock);
 
-    struct event *conn_event = &_this->connect_event;
-    ssize_t index = event_await(&conn_event, 1, true);
-    if (index == -1) {
+    if (!event_await_one(&_this->connect_event, true)) {
         errno = EINTR;
         return false;
     }
@@ -324,8 +320,7 @@ static ssize_t unix_recvmsg(struct socket *_this, struct f_description *descript
 
         spinlock_release(&this->lock);
 
-        struct event *events[] = {&this->event};
-        if (event_await(events, 1, true) < 0) {
+        if (!event_await_one(&this->event, true)) {
             errno = EINTR;
             goto cleanup;
         }

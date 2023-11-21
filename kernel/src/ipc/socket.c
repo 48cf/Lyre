@@ -457,9 +457,7 @@ int syscall_accept(void *_, int fdnum, void *addr, socklen_t *len) {
 
                 spinlock_release(&sock->lock);
 
-                struct event *sock_event = &sock->event;
-                ssize_t index = event_await(&sock_event, 1, true);
-                if (index == -1) {
+                if (!event_await_one(&sock->event, true)) {
                     errno = EINTR;
                     goto cleanup1;
                 }
@@ -487,9 +485,7 @@ int syscall_accept(void *_, int fdnum, void *addr, socklen_t *len) {
 
             event_trigger(&peer->connect_event, false);
 
-            struct event *conn_event = &sock->connect_event;
-            ssize_t index = event_await(&conn_event, 1, true);
-            if (index == -1) {
+            if (!event_await_one(&sock->connect_event, true)) {
                 errno = EINTR;
                 goto cleanup1;
             }

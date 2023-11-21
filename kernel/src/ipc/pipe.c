@@ -75,8 +75,7 @@ static ssize_t pipe_read(struct resource *_this, struct f_description *descripti
 
         spinlock_release(&this->lock);
 
-        struct event *events[] = {&this->event};
-        if (event_await(events, 1, true) < 0) {
+        if (!event_await_one(&this->event, true)) {
             errno = EINTR;
             ret = -1;
             goto cleanup;
@@ -145,8 +144,7 @@ static ssize_t pipe_write(struct resource *_this, struct f_description *descript
     while (this->used == this->capacity) {
         spinlock_release(&this->lock);
 
-        struct event *events[] = {&this->event};
-        if (event_await(events, 1, true) < 0) {
+        if (!event_await_one(&this->event, true)) {
             errno = EINTR;
             ret = -1;
             goto cleanup;
