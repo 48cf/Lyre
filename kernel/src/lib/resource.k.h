@@ -52,6 +52,19 @@ void *resource_create(size_t size);
 void resource_free(struct resource *res);
 dev_t resource_create_dev_id(void);
 
+static inline void resource_retain(struct resource *res) {
+    __atomic_fetch_add(&res->refcount, 1, __ATOMIC_SEQ_CST);
+}
+
+static inline size_t resource_release(struct resource *res) {
+    size_t result = __atomic_fetch_sub(&res->refcount, 1, __ATOMIC_SEQ_CST);
+    if (result == 1) {
+        resource_free(res);
+    }
+    ASSERT(result > 0);
+    return result;
+}
+
 bool fdnum_close(struct process *proc, int fdnum, bool lock);
 int fdnum_create_from_fd(struct process *proc, struct f_descriptor *fd, int old_fdnum, bool specific);
 int fdnum_create_from_resource(struct process *proc, struct resource *res, int flags,

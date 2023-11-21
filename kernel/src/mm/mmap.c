@@ -335,7 +335,7 @@ void *mmap(struct pagemap *pagemap, uintptr_t addr, size_t length, int prot,
     spinlock_release(&pagemap->lock);
 
     if (res != NULL) {
-        res->refcount++;
+        resource_retain(res);
     }
 
     return (void *)base;

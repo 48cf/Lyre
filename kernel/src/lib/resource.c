@@ -79,14 +79,14 @@ static bool stub_chmod(struct resource *this, mode_t mode) {
 
 static bool stub_ref(struct resource *this, struct f_description *description) {
     (void)description;
-    this->refcount++;
+    resource_retain(this);
     return true;
 }
 
 static bool stub_unref(struct resource *this, struct f_description *description) {
     (void)this;
     (void)description;
-    this->refcount--;
+    resource_release(this);
     return true;
 }
 
@@ -104,6 +104,7 @@ void *resource_create(size_t size) {
         return NULL;
     }
 
+    res->refcount = 1;
     res->res_size = size;
     res->read = stub_read;
     res->write = stub_write;
@@ -234,8 +235,6 @@ int fdnum_dup(struct process *old_proc, int old_fdnum, struct process *new_proc,
         return -1;
     }
 
-    memcpy(new_fd, old_fd, sizeof(struct f_descriptor));
-
     new_fdnum = fdnum_create_from_fd(new_proc, new_fd, new_fdnum, specific);
     if (new_fdnum < 0) {
         free(new_fd);
@@ -244,11 +243,16 @@ int fdnum_dup(struct process *old_proc, int old_fdnum, struct process *new_proc,
 
     new_fd->flags = flags & FILE_DESCRIPTOR_FLAGS_MASK;
     if (cloexec) {
-        new_fd->flags &= O_CLOEXEC;
+        new_fd->flags |= O_CLOEXEC;
     }
 
-    old_fd->description->refcount++;
-    old_fd->description->res->ref(old_fd->description->res, old_fd->description);
+    new_fd->description = old_fd->description;
+    new_fd->description->refcount++;
+
+    struct resource *res = new_fd->description->res;
+    if (res) {
+        res->ref(res, new_fd->description);
+    }
 
     return new_fdnum;
 }

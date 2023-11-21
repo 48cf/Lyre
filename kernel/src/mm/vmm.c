@@ -175,7 +175,7 @@ struct pagemap *vmm_fork_pagemap(struct pagemap *pagemap) {
         new_local_range->pagemap = new_pagemap;
 
         if (global_range->res != NULL) {
-            global_range->res->refcount++;
+            resource_release(global_range->res);
         }
 
         if ((local_range->flags & MAP_SHARED) != 0) {

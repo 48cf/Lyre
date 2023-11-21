@@ -33,7 +33,7 @@ static bool pipe_ref(struct resource *_this, struct f_description *description) 
         __atomic_fetch_add(&this->reader_count, 1, __ATOMIC_SEQ_CST);
     }
 
-    __atomic_fetch_add(&this->refcount, 1, __ATOMIC_SEQ_CST); // XXX should be atomic
+    resource_retain(_this);
     event_trigger(&this->event, false);
     return true;
 }
@@ -49,7 +49,7 @@ static bool pipe_unref(struct resource *_this, struct f_description *description
         __atomic_fetch_sub(&this->reader_count, 1, __ATOMIC_SEQ_CST);
     }
 
-    __atomic_fetch_sub(&this->refcount, 1, __ATOMIC_SEQ_CST); // XXX should be atomic
+    resource_release(_this);
     event_trigger(&this->event, false);
     return true;
 }
