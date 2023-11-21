@@ -11,6 +11,8 @@
 /.vscode
 /.jinx-cache
 /ovmf
+/kernel/.cache
+/compile_commands.json
 *.hdd
 *.elf
 *.bin
