@@ -24,6 +24,7 @@ struct process {
     VECTOR_TYPE(struct event *) child_events;
     struct event event;
     struct vfs_node *cwd;
+    struct vfs_node *root;
     spinlock_t fds_lock;
     mode_t umask;
     struct f_descriptor *fds[MAX_FDS];

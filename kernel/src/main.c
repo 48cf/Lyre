@@ -83,7 +83,7 @@ void kmain_thread(void) {
     fdnum_create_from_resource(init_proc, console_node->resource, 0, 1, true);
     fdnum_create_from_resource(init_proc, console_node->resource, 0, 2, true);
 
-    vfs_pathname(init_node, init_proc->name, sizeof(init_proc->name) - 1);
+    vfs_pathname(vfs_root, init_node, init_proc->name, sizeof(init_proc->name) - 1);
     sched_new_user_thread(init_proc, (void *)ld_auxv.at_entry, NULL, NULL, argv, envp, &init_auxv, true);
 
     sched_dequeue_and_die();

@@ -313,6 +313,7 @@ struct process *sched_new_process(struct process *old_proc, struct pagemap *page
         new_proc->thread_stack_top = old_proc->thread_stack_top;
         new_proc->mmap_anon_base = old_proc->mmap_anon_base;
         new_proc->cwd = old_proc->cwd;
+        new_proc->root = old_proc->root;
         new_proc->umask = old_proc->umask;
     } else {
         new_proc->ppid = 0;
@@ -320,6 +321,7 @@ struct process *sched_new_process(struct process *old_proc, struct pagemap *page
         new_proc->thread_stack_top = 0x70000000000;
         new_proc->mmap_anon_base = 0x80000000000;
         new_proc->cwd = vfs_root;
+        new_proc->root = vfs_root;
         new_proc->umask = S_IWGRP | S_IWOTH;
     }
 
@@ -688,7 +690,7 @@ int syscall_exec(void *_, const char *path, const char **argv, const char **envp
         goto fail;
     }
 
-    vfs_pathname(node, proc->name, sizeof(proc->name) - 1);
+    vfs_pathname(vfs_root, node, proc->name, sizeof(proc->name) - 1);
     vmm_switch_to(vmm_kernel_pagemap);
 
     thread->process = kernel_process;

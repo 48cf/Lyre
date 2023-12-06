@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stddef.h>
+#include <fs/vfs/vfs.k.h>
 #include <lib/alloc.k.h>
 #include <lib/errno.k.h>
 #include <lib/hashmap.k.h>
@@ -110,4 +111,32 @@ mode_t syscall_umask(void *_, mode_t mask) {
 
     DEBUG_SYSCALL_LEAVE("%o", old_mask);
     return old_mask;
+}
+
+int syscall_chroot(void *_, const char *path) {
+    (void)_;
+
+    DEBUG_SYSCALL_ENTER("chroot(%s)", path);
+
+    int ret = -1;
+
+    struct thread *thread = sched_current_thread();
+    struct process *proc = thread->process;
+
+    struct vfs_node *new_root = vfs_get_node(proc->cwd, path, true);
+    if (!new_root) {
+        goto cleanup;
+    }
+
+    if (!S_ISDIR(new_root->resource->stat.st_mode)) {
+        errno = ENOTDIR;
+        goto cleanup;
+    }
+
+    proc->root = new_root;
+    ret = 0;
+
+cleanup:
+    DEBUG_SYSCALL_LEAVE("%d", ret);
+    return ret;
 }

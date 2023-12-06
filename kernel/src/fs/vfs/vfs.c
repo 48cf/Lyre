@@ -57,8 +57,11 @@ struct vfs_node *vfs_root = NULL;
 
 void vfs_init(void) {
     vfs_root = vfs_create_node(NULL, NULL, "", false);
-
     filesystems = (typeof(filesystems))HASHMAP_INIT(256);
+
+    struct thread *thread = sched_current_thread();
+    struct process *proc = thread->process;
+    proc->root = vfs_root;
 }
 
 struct path2node_res {
@@ -94,7 +97,14 @@ static struct path2node_res path2node(struct vfs_node *parent, const char *path)
     }
 
     if (path[index] == '/') {
-        current_node = reduce_node(vfs_root, false);
+        struct vfs_node *root_node = vfs_root;
+        struct thread *thread = sched_current_thread();
+        if (thread) {
+            struct process *proc = thread->process;
+            root_node = proc->root;
+        }
+
+        current_node = reduce_node(root_node, false);
         while (path[index] == '/') {
             if (index == path_len - 1) {
                 return (struct path2node_res){current_node, current_node, strdup("/")};
@@ -172,7 +182,7 @@ static struct vfs_node *get_parent_dir(int dir_fdnum, const char *path) {
     struct process *proc = thread->process;
 
     if (path != NULL && *path == '/') {
-        return vfs_root;
+        return proc->root;
     }
 
     if (dir_fdnum == AT_FDCWD) {
@@ -416,13 +426,13 @@ cleanup:
     return ret;
 }
 
-size_t vfs_pathname(struct vfs_node *node, char *buffer, size_t len) {
+size_t vfs_pathname(struct vfs_node *root_node, struct vfs_node *node, char *buffer, size_t len) {
     size_t offset = 0;
-    if (node->parent != vfs_root && node->parent != NULL) {
+    if (node->parent != root_node && node->parent != NULL) {
         struct vfs_node *parent = reduce_node(node->parent, false);
 
-        if (parent != vfs_root && parent != NULL) {
-            offset += vfs_pathname(parent, buffer, len - offset - 1);
+        if (parent != root_node && parent != NULL) {
+            offset += vfs_pathname(root_node, parent, buffer, len - offset - 1);
             buffer[offset++] = '/';
         }
     }
@@ -611,7 +621,7 @@ int syscall_getcwd(void *_, char *buffer, size_t len) {
     struct process *proc = thread->process;
 
     char path_buffer[4096] = {0};
-    if (vfs_pathname(proc->cwd, path_buffer, 4096) >= len) {
+    if (vfs_pathname(vfs_root, proc->cwd, path_buffer, 4096) >= len) {
         errno = ERANGE;
         goto cleanup;
     }

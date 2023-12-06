@@ -1,8 +1,8 @@
 diff --git mlibc-clean/abis/linux/in.h mlibc-workdir/abis/linux/in.h
-index 1b07434..6b4d193 100644
+index d06c9e2..004df53 100644
 --- mlibc-clean/abis/linux/in.h
 +++ mlibc-workdir/abis/linux/in.h
-@@ -100,6 +100,10 @@ struct group_source_req {
+@@ -106,6 +106,10 @@ struct group_source_req {
  #define INET_ADDRSTRLEN  16
  #define INET6_ADDRSTRLEN 46
  
@@ -30,3 +30,34 @@ index 3474615..e034881 100644
  }
  
  char **backtrace_symbols(void *const *, int) {
+diff --git mlibc-clean/sysdeps/lyre/generic/generic.cpp mlibc-workdir/sysdeps/lyre/generic/generic.cpp
+index 549e9f0..e27cf52 100644
+--- mlibc-clean/sysdeps/lyre/generic/generic.cpp
++++ mlibc-workdir/sysdeps/lyre/generic/generic.cpp
+@@ -855,6 +855,14 @@ int sys_fsync(int) {
+ 	return 0;
+ }
+ 
++int sys_chroot(const char *path) {
++	__syscall_ret ret = __syscall(SYS_chroot, path);
++	if ((int)ret.ret == -1) {
++		return ret.errno;
++	}
++	return 0;
++}
++
+ #endif
+ 
+ } // namespace mlibc
+diff --git mlibc-clean/sysdeps/lyre/include/lyre/syscall.h mlibc-workdir/sysdeps/lyre/include/lyre/syscall.h
+index 531b869..28fecbc 100644
+--- mlibc-clean/sysdeps/lyre/include/lyre/syscall.h
++++ mlibc-workdir/sysdeps/lyre/include/lyre/syscall.h
+@@ -53,6 +53,7 @@
+ #define SYS_getsockopt 47
+ #define SYS_setsockopt 48
+ #define SYS_getsockname 49
++#define SYS_chroot 50
+ 
+ struct __syscall_ret {
+ 	uint64_t ret;

@@ -52,6 +52,7 @@ syscall_table:
     .quad syscall_getsockopt  // 47
     .quad syscall_setsockopt  // 48
     .quad syscall_getsockname // 49
+    .quad syscall_chroot      // 50
 syscall_table_end:
 
 .global syscall_count
